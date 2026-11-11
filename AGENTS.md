@@ -2,17 +2,16 @@
 
 ## Objective
 
-Bootstrap and boot a macOS arm64 virtual machine on Apple Silicon running
-Asahi Linux, using KVM, QEMU's `vmapple` machine, and an Apple-provided
-`AVPBooter.vmapple2.bin`.
+Boot an installed macOS arm64 virtual machine on Apple Silicon running Asahi
+Linux, under KVM in QEMU's `vmapple` machine, on Ambrosia firmware, displaying
+through reims-vgpu.
 
 ## Working rules
 
 - Treat this repository as an experimental lab. Prefer small, inspectable
   scripts and reproducible commands over undocumented manual steps.
-- Keep `JOURNAL.md` current. Add a dated entry for every meaningful discovery,
-  experiment, failure, decision, or change in direction. Include exact commands,
-  versions, checksums, and relevant error output.
+- Keep `README.md` current: it documents the working flow, its pinned commits
+  and its verified results, with exact versions.
 - Never commit Apple firmware, IPSWs, restore images, VM disks, machine
   identifiers, or other large/proprietary artifacts. Keep them under `artifacts/`
   or outside the repository; `.gitignore` must cover them.
@@ -26,16 +25,15 @@ Asahi Linux, using KVM, QEMU's `vmapple` machine, and an Apple-provided
   unrelated destructive actions even under the standing authorization.
 - Scripts must use `set -euo pipefail`, quote paths, validate prerequisites, and
   default to non-destructive behavior.
-- Capture upstream URLs and commit IDs for QEMU or provisioning code. Pin known
-  working revisions instead of silently tracking a moving branch.
-- Preserve failed approaches in the journal; they are useful evidence.
+- Capture upstream URLs and commit IDs for QEMU, firmware and other sources.
+  Pin known working revisions instead of silently tracking a moving branch.
 
 ## Definition of done
 
 The repository contains a reproducible, documented flow that:
 
 1. verifies the Asahi/KVM host,
-2. obtains or builds a QEMU binary with `vmapple` enabled,
-3. prepares required VM artifacts from user-supplied Apple restore material,
+2. builds QEMU with `vmapple` and reims-vgpu, and Ambrosia, from pinned commits,
+3. boots a user-supplied, already installed macOS VM,
 4. launches the guest with KVM and persistent logging, and
-5. reaches a macOS boot or installer UI.
+5. reaches the macOS desktop.

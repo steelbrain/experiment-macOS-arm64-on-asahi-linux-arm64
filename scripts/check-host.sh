@@ -1,37 +1,28 @@
 #!/usr/bin/env bash
-
+# Checks that this host can run the guest: an aarch64 Linux kernel with /dev/kvm usable by this
+# user, scripts/build.sh's QEMU with the vmapple machine and KVM, and /dev/udmabuf, which
+# reims-vgpu maps guest pages through.
+#
+# usage: scripts/check-host.sh
+# env:   QEMU (default: scripts/build.sh's, under WORK), WORK (~/work)
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-gui_qemu="$repo_root/build/reims-linux-product/vendor/qemu/build/qemu-system-aarch64"
-development_gui_qemu="$repo_root/build/reims-linux/vendor/qemu/build/qemu-system-aarch64"
-headless_qemu="$repo_root/build/experiment-macOS-arm64-on-linux-x86/build/qemu-system-aarch64"
-if test -n "${QEMU_BIN:-}"; then
-    qemu="$QEMU_BIN"
-elif test -x "$gui_qemu"; then
-    qemu="$gui_qemu"
-elif test -x "$development_gui_qemu"; then
-    qemu="$development_gui_qemu"
-else
-    qemu="$headless_qemu"
-fi
+die() { echo "check-host: $*" >&2; exit 1; }
+WORK=${WORK:-$HOME/work}
+QEMU=${QEMU:-$WORK/reims-vgpu/build/qemu-aarch64/qemu-system-aarch64}
 
-test "$(uname -m)" = aarch64 || {
-    echo "error: this flow requires an AArch64 host" >&2
-    exit 1
-}
-test -r /dev/kvm && test -w /dev/kvm || {
-    echo "error: current user cannot access /dev/kvm" >&2
-    exit 1
-}
-test -x "$qemu" || {
-    echo "error: patched QEMU not found at $qemu" >&2
-    exit 1
-}
-"$qemu" -machine help | grep -q '^vmapple '
+[[ $(uname -s) == Linux && $(uname -m) == aarch64 ]] || die "this needs an aarch64 Linux host"
+[[ -r /dev/kvm && -w /dev/kvm ]] || die "$(id -un) cannot use /dev/kvm"
+[[ -x $QEMU ]] || die "no QEMU at $QEMU (run scripts/build.sh, or set QEMU)"
+machines=$("$QEMU" -machine help)
+accels=$("$QEMU" -accel help)
+grep -q '^vmapple ' <<< "$machines" || die "$QEMU has no vmapple machine"
+grep -qx kvm <<< "$accels" || die "$QEMU was built without KVM"
+[[ -e /dev/udmabuf ]] || die "no /dev/udmabuf (load the udmabuf module)"
+[[ -r /dev/udmabuf && -w /dev/udmabuf ]] ||
+  die "$(id -un) cannot use /dev/udmabuf (add the user to its group, kvm on Fedora)"
 
 printf 'architecture: %s\n' "$(uname -m)"
 printf 'kernel: %s\n' "$(uname -r)"
-printf 'KVM: accessible\n'
-printf 'QEMU: %s\n' "$qemu"
-printf 'VMApple KVM host check: PASS\n'
+printf 'QEMU: %s\n' "$QEMU"
+printf 'KVM, vmapple, udmabuf: usable\n'
